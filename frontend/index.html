@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMEN CONTROL // TERMINAL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        /* Brutalist Details */
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .brutalist-border {
+            border: 2px solid #fff;
+        }
+
+        .brutalist-btn {
+            border: 2px solid #fff;
+            transition: all 0.1s;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .brutalist-btn:hover {
+            background-color: #fff;
+            color: #000;
+        }
+
+        .btn-active {
+            background-color: #fff;
+            color: #000;
+        }
+
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            background: #000;
+            border: 2px solid #fff;
+            cursor: pointer;
+            margin-top: -10px;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #333;
+            border: 1px solid #555;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-5xl">
+
+        <!-- Header -->
+        <div class="border-b-4 border-white pb-4 mb-8 flex justify-between items-end">
+            <div>
+                <h1 class="text-6xl md:text-8xl font-black tracking-tighter leading-none">OMEN<span
+                        class="text-gray-600">_LINUX</span></h1>
+                <p class="text-sm mt-2 text-gray-400">HARDWARE_ACCESS_LAYER // V1.0.0</p>
+            </div>
+            <div class="text-right hidden md:block">
+                <div class="text-xs">SYSTEM_STATUS:</div>
+                <div class="text-xl font-bold text-green-500">ONLINE</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- Vitals Card -->
+            <div class="brutalist-border p-6 relative bg-black">
+                <div class="absolute -top-4 left-6 bg-black px-2 font-bold text-xl">SYSTEM_VITALS</div>
+
+                <div class="space-y-8 mt-4">
+                    <!-- CPU -->
+                    <div class="flex justify-between items-end border-b border-dashed border-gray-700 pb-2">
+                        <div class="flex flex-col">
+                            <span class="text-xs text-gray-500">SENSOR_01</span>
+                            <span class="font-bold text-xl">CPU_TEMP</span>
+                        </div>
+                        <div class="text-5xl font-bold">{{ temps.cpu.toFixed(1) }}°C</div>
+                    </div>
+
+                    <!-- GPU -->
+                    <div class="flex justify-between items-end border-b border-dashed border-gray-700 pb-2">
+                        <div class="flex flex-col">
+                            <span class="text-xs text-gray-500">SENSOR_02</span>
+                            <span class="font-bold text-xl">GPU_TEMP</span>
+                        </div>
+                        <div class="text-5xl font-bold">{{ temps.gpu.toFixed(1) }}°C</div>
+                    </div>
+
+                    <!-- RPM -->
+                    <div class="flex justify-between items-end border-b border-dashed border-gray-700 pb-2">
+                        <div class="flex flex-col">
+                            <span class="text-xs text-gray-500">TACHOMETER</span>
+                            <span class="font-bold text-xl text-white">FAN_SPEED</span>
+                        </div>
+                        <div class="text-5xl font-bold">{{ fan.rpm }} <span class="text-2xl">RPM</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Card -->
+            <div class="brutalist-border p-6 relative bg-black flex flex-col justify-between">
+                <div class="absolute -top-4 left-6 bg-black px-2 font-bold text-xl">THERMAL_OVERRIDE</div>
+
+                <div class="mt-4">
+                    <p class="text-sm text-gray-400 mb-4">SELECT OPERATION MODE:</p>
+                    <div class="grid grid-cols-3 gap-4">
+                        <button @click="setMode('auto')" class="brutalist-btn py-6"
+                            :class="{'btn-active': mode === 'auto'}">
+                            AUTO
+                        </button>
+                        <button @click="setMode('max')" class="brutalist-btn py-6"
+                            :class="{'btn-active': mode === 'max'}">
+                            MAX
+                        </button>
+                        <button @click="setMode('manual')" class="brutalist-btn py-6"
+                            :class="{'btn-active': mode === 'manual'}">
+                            MANUAL
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-8 transition-opacity duration-200"
+                    :class="{'opacity-30 pointer-events-none': mode !== 'manual'}">
+                    <div class="flex justify-between mb-2 font-bold">
+                        <span>MANUAL_SPEED_TARGET</span>
+                        <span>{{ speed }}%</span>
+                    </div>
+                    <input type="range" v-model="speed" @change="setSpeed(speed)" min="0" max="100" class="w-full">
+                    <div class="flex justify-between text-xs text-gray-500 mt-2">
+                        <span>0%</span>
+                        <span>50%</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+
+                <div class="mt-8 border-t border-gray-800 pt-4 text-xs text-gray-500">
+                    <p>> AUTO_MODE: BIOS_CONTROLLED (FLAGS=0x0)</p>
+                    <p>> MANUAL_MODE: DIRECT_MEMORY_ACCESS (ADDR=0xFC7E0814)</p>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="mt-8 text-center text-xs text-gray-600">
+            OMEN CONTROL FOR LINUX | BUILD 2026.01.05
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp } = Vue
+
+        createApp({
+            data() {
+                return {
+                    mode: 'auto',
+                    speed: 50,
+                    temps: { cpu: 0, gpu: 0 },
+                    fan: { rpm: 0 },
+                    pollInterval: null
+                }
+            },
+            methods: {
+                async fetchStatus() {
+                    try {
+                        const res = await fetch('/status');
+                        const data = await res.json();
+                        this.temps = data.temps;
+                        this.fan = data.fan;
+                    } catch (e) {
+                        console.error("Connection lost", e);
+                    }
+                },
+                async setMode(newMode) {
+                    this.mode = newMode;
+                    await fetch(`/fan/mode/${newMode}`, { method: 'POST' });
+                    // Provide feedback update
+                    setTimeout(this.fetchStatus, 500);
+                },
+                async setSpeed(val) {
+                    this.mode = 'manual'; // Force manual logic if using slider
+                    await fetch(`/fan/speed?percentage=${val}`, { method: 'POST' });
+                },
+                getTempColor(t) {
+                    // Not used in B&W theme ideally, but logic remains
+                    return '';
+                }
+            },
+            mounted() {
+                this.fetchStatus();
+                this.pollInterval = setInterval(this.fetchStatus, 2000);
+            }
+        }).mount('#app')
+    </script>
+</body>
+
+</html>
