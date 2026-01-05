@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Omen Linux
+Comment=Fan Control & Dashboard for HP Victus/Omen
+Exec=/opt/omen-linux/launch.sh
+Icon=/opt/omen-linux/icon.png
+Categories=System;HardwareSettings;
+Terminal=false
+StartupNotify=true
