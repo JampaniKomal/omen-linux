@@ -6,22 +6,23 @@ if [ "$EUID" -ne 0 ]; then
   exit
 fi
 
+# Get the absolute path of the directory where install.sh is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 INSTALL_DIR="/opt/omen-linux"
+
 echo "Installing Omen Linux to $INSTALL_DIR..."
 
 # 1. Create Directory
 mkdir -p $INSTALL_DIR
 
 # 2. Copy Files
-cp -r backend $INSTALL_DIR/
-cp -r frontend $INSTALL_DIR/
-cp icon.png $INSTALL_DIR/
-cp launch.sh $INSTALL_DIR/
-cp start_server_root.sh $INSTALL_DIR/
+cp -r "$SCRIPT_DIR/backend" $INSTALL_DIR/
+cp -r "$SCRIPT_DIR/frontend" $INSTALL_DIR/
+cp -r "$SCRIPT_DIR/resources" $INSTALL_DIR/
+cp -r "$SCRIPT_DIR/scripts" $INSTALL_DIR/
 
 # 3. Setup Permissions
-chmod +x $INSTALL_DIR/launch.sh
-chmod +x $INSTALL_DIR/start_server_root.sh
+chmod +x $INSTALL_DIR/scripts/*.sh
 mkdir -p $INSTALL_DIR/backend/venv
 
 # 4. Setup Python Environment (in /opt)
@@ -33,7 +34,9 @@ pip install -r requirements.txt
 
 # 5. Install Desktop File
 echo "Registering Desktop App..."
-cp "omen-linux.desktop" /usr/share/applications/omen-linux.desktop
+# Fix: Ensure we copy from the installed location to /usr/share
+cp "$INSTALL_DIR/resources/omen-linux.desktop" /usr/share/applications/omen-linux.desktop
+update-desktop-database /usr/share/applications/
 
 echo ""
 echo "==========================================="

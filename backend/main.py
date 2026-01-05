@@ -55,14 +55,17 @@ def set_mode(mode: str):
     elif mode == "auto":
         fan.set_auto_mode()
         return {"status": "success", "mode": "auto"}
+    elif mode == "manual":
+        # Manual mode is implicitly set when setting speed, but we allow the call to acknowledge it.
+        return {"status": "success", "mode": "manual"}
     else:
-        raise HTTPException(status_code=400, detail="Invalid mode. Use 'max' or 'auto'.")
+        raise HTTPException(status_code=400, detail="Invalid mode. Use 'max', 'auto', or 'manual'.")
 
 @app.post("/fan/speed")
-def set_speed(speed: FanSpeed):
-    if 0 <= speed.percentage <= 100:
-        fan.set_manual_speed(speed.percentage)
-        return {"status": "success", "speed": speed.percentage}
+def set_speed(percentage: int):
+    if 0 <= percentage <= 100:
+        fan.set_manual_speed(percentage)
+        return {"status": "success", "speed": percentage}
     else:
         raise HTTPException(status_code=400, detail="Speed must be 0-100")
 

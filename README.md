@@ -1,57 +1,52 @@
 # OMEN LINUX
 
-**Experimental Fan Control & Dashboard for HP Victus / Omen Laptops on Linux.**
+**Native Fan Control & Dashboard for HP Victus / Omen Laptops on Linux.**
 
-> **WARNING**: This software writes directly to your laptop's Embedded Controller (EC) memory (`/dev/mem`). While tested on HP Victus (Ryzen 7 7840HS), incorrect usage on unsupported hardware could cause system instability. Use at your own risk.
+> **WARNING**: This software writes directly to your laptop's Embedded Controller (EC) memory (`/dev/mem`). Use at your own risk.
+
+![Omen Linux Icon](resources/icon.png)
 
 ## Features
 
+-   **Desktop App**: Installs as a native application in your system menu.
 -   **Brutalist Dashboard**: High-contrast, keyboard-friendly Web UI.
--   **Direct Memory Access (DMA)**: Bypasses limited ACPI tables to talk directly to the hardware.
+-   **Direct Memory Access (DMA)**: Bypasses ACPI to talk directly to hardware.
 -   **Modes**:
-    -   **AUTO**: DEFAULT. Hands control back to the BIOS.
+    -   **AUTO**: Hands control back to BIOS default curves.
     -   **MAX**: Forces 100% Fan Speed (~5300 RPM).
-    -   **MANUAL**: Slider control (0-100%).
--   **Real-Time Monitoring**: CPU Temp, GPU Temp, and **True Fan RPM**.
-
-## Requirements
-
--   Linux Kernel (Tested on 6.x+)
--   Python 3.10+
--   `lm-sensors` (for temperature readings)
--   Root privileges (for physical memory access)
+    -   **MANUAL**: Granular slider control (0-100%).
 
 ## Installation
 
-1.  **Clone this repository**:
+1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/your-username/omen-linux.git
+    git clone https://github.com/JampaniKomal/omen-linux.git
     cd omen-linux
     ```
 
-2.  **Run the launcher**:
+2.  **Run the Installer**:
     ```bash
-    chmod +x start.sh
-    ./start.sh
+    sudo ./install.sh
     ```
-    *Note: The script will automatically create a virtual environment (`venv`) and install dependencies on the first run.*
 
-3.  **Access the Dashboard**:
-    Open [http://localhost:8000/ui/](http://localhost:8000/ui/) in your browser.
+3.  **Launch**:
+    Search for **Omen Linux** in your application menu.
 
-## Troubleshooting
+## Manual Usage (Dev Mode)
 
--   **"Operation not permitted"**: Ensure you run the script with `sudo` (or enter password when prompted).
--   **Zero Temperatures**: Install `lm-sensors` (`sudo apt install lm-sensors && sudo sensors-detect`).
--   **Fans stuck?**: Click "AUTO" in the dashboard. If that fails, a full reboot resets the EC state.
+If you prefer running from source without installing:
+```bash
+cd scripts
+./start.sh
+```
 
-## Hardware Details
+## Hardware Compatibility
 
-Fan control is achieved by mapping the EC memory region (`0xFC7E0000`).
--   **Manual Mode Switch**: Offset `0x80F` (Bit 3)
--   **Fan Speed Write**: Offset `0x814`
--   **Fan RPM Read**: Offset `0x811`
+Confirmed working on:
+-   **HP Victus 16 (Ryzen 7 7840HS)**
+
+*Note: Requires `lm-sensors` for temperature monitoring.*
 
 ## License
 
-MIT License.
+[MIT License](LICENSE)
