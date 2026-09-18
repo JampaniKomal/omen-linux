@@ -29,7 +29,7 @@ echo ""
 if [ "$EUID" -ne 0 ]; then
   echo "[!] Hardware Access requires ROOT privileges."
   echo "[!] Please enter sudo password:"
-  sudo ./venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+  sudo ./venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 else
-  ./venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+  ./venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 fi

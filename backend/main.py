@@ -1,5 +1,4 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
@@ -8,14 +7,11 @@ import os
 
 app = FastAPI(title="Omen Linux Fan Control")
 
-# Enable CORS for frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# No CORS middleware: the frontend is served by this same app (see the
+# StaticFiles mount below) and is only ever accessed same-origin via
+# http://localhost:8000/ui/ (see scripts/start.sh, scripts/launch.sh). This
+# API writes directly to Embedded Controller memory and runs as root, so it
+# must never accept cross-origin requests.
 
 # Serve Frontend
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
@@ -49,26 +45,37 @@ def get_status():
 
 @app.post("/fan/mode/{mode}")
 def set_mode(mode: str):
-    if mode == "max":
-        fan.set_max_mode()
-        return {"status": "success", "mode": "max"}
-    elif mode == "auto":
-        fan.set_auto_mode()
-        return {"status": "success", "mode": "auto"}
-    elif mode == "manual":
-        # Manual mode is implicitly set when setting speed, but we allow the call to acknowledge it.
-        return {"status": "success", "mode": "manual"}
-    else:
-        raise HTTPException(status_code=400, detail="Invalid mode. Use 'max', 'auto', or 'manual'.")
+    try:
+        if mode == "max":
+            fan.set_max_mode()
+            return {"status": "success", "mode": "max"}
+        elif mode == "auto":
+            fan.set_auto_mode()
+            return {"status": "success", "mode": "auto"}
+        elif mode == "manual":
+            # Manual mode is implicitly set when setting speed, but we allow the call to acknowledge it.
+            return {"status": "success", "mode": "manual"}
+        else:
+            raise HTTPException(status_code=400, detail="Invalid mode. Use 'max', 'auto', or 'manual'.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Hardware access failed: {e}. Is the server running as root?")
 
 @app.post("/fan/speed")
 def set_speed(percentage: int):
     if 0 <= percentage <= 100:
-        fan.set_manual_speed(percentage)
+        try:
+            fan.set_manual_speed(percentage)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Hardware access failed: {e}. Is the server running as root?")
         return {"status": "success", "speed": percentage}
     else:
         raise HTTPException(status_code=400, detail="Speed must be 0-100")
 
 if __name__ == "__main__":
-    # We need to run as root for ACPI calls to work
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Bind to localhost only: this API writes directly to Embedded
+    # Controller memory and runs as root. The frontend only ever calls it
+    # same-origin via http://localhost:8000/ui/ - there is no legitimate
+    # reason to expose it on the network.
+    uvicorn.run(app, host="127.0.0.1", port=8000)

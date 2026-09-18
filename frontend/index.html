@@ -196,14 +196,34 @@
                     }
                 },
                 async setMode(newMode) {
+                    const previousMode = this.mode;
                     this.mode = newMode;
-                    await fetch(`/fan/mode/${newMode}`, { method: 'POST' });
+                    try {
+                        const res = await fetch(`/fan/mode/${newMode}`, { method: 'POST' });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || `Request failed (${res.status})`);
+                        }
+                    } catch (e) {
+                        console.error("Failed to set mode", e);
+                        this.mode = previousMode;
+                        alert(`Failed to set fan mode: ${e.message}`);
+                    }
                     // Provide feedback update
                     setTimeout(this.fetchStatus, 500);
                 },
                 async setSpeed(val) {
                     this.mode = 'manual'; // Force manual logic if using slider
-                    await fetch(`/fan/speed?percentage=${val}`, { method: 'POST' });
+                    try {
+                        const res = await fetch(`/fan/speed?percentage=${val}`, { method: 'POST' });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.detail || `Request failed (${res.status})`);
+                        }
+                    } catch (e) {
+                        console.error("Failed to set speed", e);
+                        alert(`Failed to set fan speed: ${e.message}`);
+                    }
                 },
                 getTempColor(t) {
                     // Not used in B&W theme ideally, but logic remains
