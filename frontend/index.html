@@ -71,12 +71,22 @@
 
     <div id="app" class="w-full max-w-5xl">
 
+        <!-- Notices: hardware errors, unconfirmed model, simulation, safety events -->
+        <div v-if="error" class="brutalist-border p-3 mb-4 text-sm">ERROR // {{ error }}</div>
+        <div v-if="hardware && !hardware.confirmed_model && !hardware.simulated" class="brutalist-border p-3 mb-4 text-sm">
+            UNCONFIRMED_MODEL // {{ hardware.model || "unknown" }}: fan writes are refused unless OMEN_FORCE=1 is set.
+        </div>
+        <div v-if="hardware && hardware.simulated" class="brutalist-border p-3 mb-4 text-sm">SIMULATION // no hardware is touched</div>
+        <div v-if="safety && safety.last_event" class="brutalist-border p-3 mb-4 text-sm">
+            SAFETY // {{ safety.last_event.time }}: {{ safety.last_event.message }}
+        </div>
+
         <!-- Header -->
         <div class="border-b-4 border-white pb-4 mb-8 flex justify-between items-end">
             <div>
                 <h1 class="text-6xl md:text-8xl font-black tracking-tighter leading-none">OMEN<span
                         class="text-gray-600">_LINUX</span></h1>
-                <p class="text-sm mt-2 text-gray-400">HARDWARE_ACCESS_LAYER // V1.0.0</p>
+                <p class="text-sm mt-2 text-gray-400">HARDWARE_ACCESS_LAYER // V1.1.0</p>
             </div>
             <div class="text-right hidden md:block">
                 <div class="text-xs">SYSTEM_STATUS:</div>
@@ -98,7 +108,7 @@
                             <span class="text-xs text-gray-500">SENSOR_01</span>
                             <span class="font-bold text-xl">CPU_TEMP</span>
                         </div>
-                        <div class="text-5xl font-bold">{{ temps.cpu.toFixed(1) }}°C</div>
+                        <div class="text-5xl font-bold">{{ fmt(temps.cpu) }}°C</div>
                     </div>
 
                     <!-- GPU -->
@@ -107,7 +117,7 @@
                             <span class="text-xs text-gray-500">SENSOR_02</span>
                             <span class="font-bold text-xl">GPU_TEMP</span>
                         </div>
-                        <div class="text-5xl font-bold">{{ temps.gpu.toFixed(1) }}°C</div>
+                        <div class="text-5xl font-bold">{{ fmt(temps.gpu) }}°C</div>
                     </div>
 
                     <!-- RPM -->
@@ -116,7 +126,7 @@
                             <span class="text-xs text-gray-500">TACHOMETER</span>
                             <span class="font-bold text-xl text-white">FAN_SPEED</span>
                         </div>
-                        <div class="text-5xl font-bold">{{ fan.rpm }} <span class="text-2xl">RPM</span></div>
+                        <div class="text-5xl font-bold">{{ fan ? fan.rpm : "--" }} <span class="text-2xl">RPM</span></div>
                     </div>
                 </div>
             </div>
@@ -179,8 +189,12 @@
                 return {
                     mode: 'auto',
                     speed: 50,
-                    temps: { cpu: 0, gpu: 0 },
-                    fan: { rpm: 0 },
+                    temps: { cpu: null, gpu: null },
+                    fan: null,
+                    error: null,
+                    hardware: null,
+                    safety: null,
+                    pendingManual: false,  // MANUAL chosen; the EC changes with the first speed set
                     pollInterval: null
                 }
             },
@@ -191,6 +205,13 @@
                         const data = await res.json();
                         this.temps = data.temps;
                         this.fan = data.fan;
+                        this.error = data.error;
+                        this.hardware = data.hardware;
+                        this.safety = data.safety;
+                        // show what the EC is really doing (the safety watchdog may have changed it)
+                        if (data.fan && !this.pendingManual) {
+                            this.mode = data.fan.mode;
+                        }
                     } catch (e) {
                         console.error("Connection lost", e);
                     }
@@ -198,8 +219,9 @@
                 async setMode(newMode) {
                     const previousMode = this.mode;
                     this.mode = newMode;
+                    this.pendingManual = newMode === 'manual';
                     try {
-                        const res = await fetch(`/fan/mode/${newMode}`, { method: 'POST' });
+                        const res = await this.post(`/fan/mode/${newMode}`);
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
                             throw new Error(err.detail || `Request failed (${res.status})`);
@@ -215,19 +237,23 @@
                 async setSpeed(val) {
                     this.mode = 'manual'; // Force manual logic if using slider
                     try {
-                        const res = await fetch(`/fan/speed?percentage=${val}`, { method: 'POST' });
+                        const res = await this.post(`/fan/speed?percentage=${val}`);
                         if (!res.ok) {
                             const err = await res.json().catch(() => ({}));
                             throw new Error(err.detail || `Request failed (${res.status})`);
                         }
+                        this.pendingManual = false;
                     } catch (e) {
                         console.error("Failed to set speed", e);
                         alert(`Failed to set fan speed: ${e.message}`);
                     }
                 },
-                getTempColor(t) {
-                    // Not used in B&W theme ideally, but logic remains
-                    return '';
+                post(url) {
+                    // The backend refuses POSTs without this header, which other websites cannot send.
+                    return fetch(url, { method: 'POST', headers: { 'X-Omen-Linux': '1' } });
+                },
+                fmt(t) {
+                    return t === null || t === undefined ? '--' : t.toFixed(1);
                 }
             },
             mounted() {
