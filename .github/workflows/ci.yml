@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r backend/requirements.txt httpx pytest ruff
+
+      - name: Lint
+        run: ruff check . && ruff format --check .
+
+      - name: Tests (in-memory EC; no root or hardware needed)
+        run: python -m pytest -q
+
+      - name: ShellCheck the installer and launch scripts
+        run: shellcheck install.sh scripts/*.sh
+
+      - name: Simulation mode serves the dashboard
+        run: |
+          cd backend
+          OMEN_SIMULATE=1 python -m uvicorn main:app --host 127.0.0.1 --port 8000 &
+          for i in $(seq 1 30); do curl -fs http://localhost:8000/ && break; sleep 1; done
+          curl -fs http://localhost:8000/ui/ | grep -q "OMEN"
+          curl -fs -X POST -H "X-Omen-Linux: 1" http://localhost:8000/fan/mode/max
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8000/fan/mode/max)
+          test "$code" = 403   # no dashboard header
