@@ -1,27 +1,24 @@
 #!/bin/bash
-# Native Application Launcher for Omen Linux
+# Desktop launcher for Omen Linux: start the root backend (unless it is already
+# running), then open the dashboard as an app window.
 
 APP_DIR="/opt/omen-linux"
-PORT=8000
+URL="http://localhost:8000"
 
-# 1. Start External Backend (Root required for Hardware Access)
-echo "Starting Omen Backend Service..."
-pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY $APP_DIR/scripts/start_server_root.sh &
-
-# 2. Wait for Server to be ready
-echo "Waiting for server..."
-sleep 3
-
-# 3. Launch UI in App Mode (Borderless Window)
-BROWSER_BIN=""
-if command -v google-chrome &> /dev/null; then
-    BROWSER_BIN="google-chrome"
-elif command -v chromium &> /dev/null; then
-    BROWSER_BIN="chromium"
+if ! curl -fs "$URL/" > /dev/null 2>&1; then
+    echo "Starting the Omen Linux backend..."
+    # OMEN_IDLE_EXIT: two minutes after the dashboard is closed, the backend
+    # gives fan control back to the BIOS and exits.
+    pkexec env OMEN_IDLE_EXIT=120 "$APP_DIR/scripts/start_server_root.sh" &
+    for _ in $(seq 1 60); do
+        curl -fs "$URL/" > /dev/null 2>&1 && break
+        sleep 0.5
+    done
 fi
 
-if [ -n "$BROWSER_BIN" ]; then
-    $BROWSER_BIN --app="http://localhost:$PORT/ui/" --class="OmenLinux" --user-data-dir="/tmp/omen_linux_chrome_dummy"
-else
-    xdg-open "http://localhost:$PORT/ui/"
-fi
+for browser in google-chrome chromium chromium-browser; do
+    if command -v "$browser" > /dev/null 2>&1; then
+        exec "$browser" --app="$URL/ui/" --class="OmenLinux" --user-data-dir="${XDG_RUNTIME_DIR:-/tmp}/omen-linux-browser"
+    fi
+done
+xdg-open "$URL/ui/"

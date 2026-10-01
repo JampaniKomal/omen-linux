@@ -1,46 +1,34 @@
 #!/bin/bash
-# Omen Linux Installer
+# Omen Linux installer: copies the app to /opt/omen-linux and adds a menu entry.
+set -e
 
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root (sudo ./install.sh)"
-  exit
+    echo "Please run as root (sudo ./install.sh)"
+    exit 1
 fi
 
-# Get the absolute path of the directory where install.sh is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/opt/omen-linux"
 
 echo "Installing Omen Linux to $INSTALL_DIR..."
+mkdir -p "$INSTALL_DIR"
+for part in backend frontend resources scripts; do
+    rm -rf "${INSTALL_DIR:?}/$part"
+    cp -r "$SCRIPT_DIR/$part" "$INSTALL_DIR/"
+done
+rm -rf "$INSTALL_DIR/backend/venv"
+chmod +x "$INSTALL_DIR"/scripts/*.sh
 
-# 1. Create Directory
-mkdir -p $INSTALL_DIR
+echo "Setting up the Python environment..."
+python3 -m venv "$INSTALL_DIR/backend/venv"
+"$INSTALL_DIR/backend/venv/bin/pip" install --quiet -r "$INSTALL_DIR/backend/requirements.txt"
 
-# 2. Copy Files
-cp -r "$SCRIPT_DIR/backend" $INSTALL_DIR/
-cp -r "$SCRIPT_DIR/frontend" $INSTALL_DIR/
-cp -r "$SCRIPT_DIR/resources" $INSTALL_DIR/
-cp -r "$SCRIPT_DIR/scripts" $INSTALL_DIR/
-
-# 3. Setup Permissions
-chmod +x $INSTALL_DIR/scripts/*.sh
-mkdir -p $INSTALL_DIR/backend/venv
-
-# 4. Setup Python Environment (in /opt)
-echo "Setting up Python environment..."
-cd $INSTALL_DIR/backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# 5. Install Desktop File
-echo "Registering Desktop App..."
-# Fix: Ensure we copy from the installed location to /usr/share
+echo "Registering the desktop app..."
 cp "$INSTALL_DIR/resources/omen-linux.desktop" /usr/share/applications/omen-linux.desktop
-update-desktop-database /usr/share/applications/
+update-desktop-database /usr/share/applications/ || true
 
 echo ""
 echo "==========================================="
 echo " INSTALLATION COMPLETE"
 echo "==========================================="
 echo "Search for 'Omen Linux' in your application menu."
-echo ""

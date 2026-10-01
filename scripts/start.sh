@@ -1,21 +1,15 @@
 #!/bin/bash
-# Omen Linux Control Launcher
+# Omen Linux: run the backend from a source checkout (dev mode).
+# Set OMEN_SIMULATE=1 to try the dashboard without touching any hardware.
+set -e
 
-# Navigate to script directory
-cd "$(dirname "$0")"
+# The backend lives next to this scripts/ directory.
+cd "$(dirname "$0")/../backend"
 
-# Go to backend
-cd backend
-
-# Setup Python Environment
 if [ ! -d "venv" ]; then
-    echo "[*] First run setup: Creating virtual environment..."
+    echo "[*] First run setup: creating a virtual environment..."
     python3 -m venv venv
-    source venv/bin/activate
-    echo "[*] Installing dependencies..."
-    pip install -r requirements.txt
-else
-    source venv/bin/activate
+    ./venv/bin/pip install -r requirements.txt
 fi
 
 echo ""
@@ -25,11 +19,9 @@ echo "========================================"
 echo "Dashboard: http://localhost:8000/ui/"
 echo ""
 
-# Run with root privileges (Required for /dev/mem access)
-if [ "$EUID" -ne 0 ]; then
-  echo "[!] Hardware Access requires ROOT privileges."
-  echo "[!] Please enter sudo password:"
-  sudo ./venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
-else
-  ./venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+if [ "${OMEN_SIMULATE:-0}" = "1" ] || [ "$EUID" -eq 0 ]; then
+    exec ./venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 fi
+# Hardware access (/dev/mem) needs root.
+echo "[!] Hardware access requires root; enter your sudo password."
+exec sudo --preserve-env=OMEN_FORCE,OMEN_SAFE_TEMP ./venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
